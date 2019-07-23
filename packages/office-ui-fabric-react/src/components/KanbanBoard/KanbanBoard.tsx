@@ -76,6 +76,7 @@ class KanbanLane extends React.PureComponent<IKanbanLaneProps, IKanbanLaneState>
     this._laneColumnWidth = (this.props.laneColumn.width && this.props.laneColumn.width.toString() + 'px') || this._laneColumnWidth;
     this._deleteItem = this._deleteItem.bind(this);
     this._addItem = this._addItem.bind(this);
+    this._moveItem = this._moveItem.bind(this);
     this.state = {
       items: (this.props.getItems && this.props.getItems(this.props.laneColumn)) || []
     };
@@ -94,8 +95,25 @@ class KanbanLane extends React.PureComponent<IKanbanLaneProps, IKanbanLaneState>
   }
 
   private _deleteItem(index: any) {
-    const items = this.state.items.slice();
+    const items: any[] = this.state.items.slice();
     items.splice(index, 1);
+    this.setState({ items: items });
+    // this.setState(state => {
+    //   // Important: read `state` instead of `this.state` when updating.
+    //   return { items: items };
+    // });
+  }
+
+  private _moveItem(sourceIndex: any, destinationIndex: any): void {
+    const items: any[] = this.state.items.slice();
+    const itemToMove = items[sourceIndex];
+    //remove rule at currentIndex
+    items.splice(sourceIndex, 1);
+    if (sourceIndex < destinationIndex) {
+      destinationIndex = destinationIndex - 1;
+    }
+    //insert rule at moveToIndex
+    items.splice(destinationIndex, 0, itemToMove);
     this.setState(state => {
       // Important: read `state` instead of `this.state` when updating.
       return { items: items };
@@ -129,6 +147,7 @@ class KanbanLane extends React.PureComponent<IKanbanLaneProps, IKanbanLaneState>
         onRenderLaneItem={onRenderLaneItem}
         addItem={this._addItem}
         deleteItem={this._deleteItem}
+        moveItem={this._moveItem}
         parentLaneKey={this.props.laneColumn.key}
       />
     );
@@ -146,15 +165,20 @@ class KanbanLane extends React.PureComponent<IKanbanLaneProps, IKanbanLaneState>
     );
   }
 }
-
 class KanbanLaneItem extends React.PureComponent<IKanbanLaneItemProps> {
   constructor(props: IKanbanLaneItemProps) {
     super(props);
   }
   public render(): JSX.Element {
-    const { onRenderLaneItem, item, index, connectDragSource, connectDragPreview, connectDropTarget } = this.props;
+    const { onRenderLaneItem, item, index, connectDragSource, connectDragPreview, connectDropTarget, isDragging } = this.props;
     return connectDropTarget(
-      connectDragPreview(connectDragSource(<div className={classNames.laneItem}>{onRenderLaneItem && onRenderLaneItem(item, index)}</div>))
+      connectDragPreview(
+        connectDragSource(
+          <div className={classNames.laneItem} style={{ opacity: isDragging ? 0 : 1 }}>
+            {onRenderLaneItem && onRenderLaneItem(item, index)}
+          </div>
+        )
+      )
     );
   }
 }
@@ -167,8 +191,10 @@ const dragSourceSpec: DragSourceSpec<any, any> = {
 
   endDrag(props: IKanbanLaneItemProps, monitor: DragSourceMonitor, component: React.Component): void {
     if (monitor.didDrop()) {
-      console.log('Drag end delete item');
-      props.deleteItem(monitor.getItem().index);
+      console.log('Drag end delete item: ', monitor.getItem().index);
+      if (props.parentLaneKey !== monitor.getDropResult().dropTargetParentLaneKey) {
+        props.deleteItem(monitor.getItem().index);
+      }
     }
     console.log('Drag end');
   }
@@ -177,8 +203,16 @@ const dragSourceSpec: DragSourceSpec<any, any> = {
 const dropTargetSpec: DropTargetSpec<any> = {
   drop(props: IKanbanLaneItemProps, monitor: DropTargetMonitor, component: React.Component): any {
     const draggedItem = monitor.getItem();
-    console.log('Drop event add item');
-    props.addItem(props.index, draggedItem.dragItem);
+    console.log('Drop event add item: ', props.index);
+    if (props.parentLaneKey === monitor.getItem().dragItemParentLaneKey) {
+      console.log('Drop event moveitem');
+      props.moveItem(monitor.getItem().index, props.index);
+    } else {
+      console.log('Drop event add itme');
+      props.addItem(props.index, draggedItem.dragItem);
+    }
+
+    return { dropTargetParentLaneKey: props.parentLaneKey };
     console.log('Drop event');
   },
 

@@ -26,7 +26,9 @@ export interface IKanbanLaneItemProps {
   connectDragSource?: any;
   connectDropTarget?: any;
   connectDragPreview?: any;
-  deleteItem: (index: any) => void;
+  deleteItem: (index: any) => any;
   addItem: (index: any, item: any) => void;
+  moveItem: (sourceIndex: any, destinationIndex: any) => void;
+  isDragging: boolean;
   parentLaneKey: string;
 }
